@@ -1,67 +1,34 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.Socket;
+import java.io.*;
+import java.net.*;
+import java.util.Scanner;
 
 public class Client {
-    public static final String HOSTNAME = "127.0.0.1";
-    public static final int PORT = 9999;
-
-    private Socket socket;
-
     public static void main(String[] args) {
-        new Client(HOSTNAME, PORT).startCommunication();
-    }
+        String serverAddress = "localhost";
+        int port = 8888;
 
-    public Client(String hostname, int port) {
-        System.out.println("Attempting to connect to host " + hostname + " on port " + port);
+        try (Socket socket = new Socket(serverAddress, port);
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             Scanner scanner = new Scanner(System.in)) {
 
-        try {
-            socket = new Socket(hostname, port);
-            System.out.println("Client: connected");
-        } catch (IOException e) {
-            System.err.println("Client: connection error.");
-            System.exit(1);
-        }
-    }
+            System.out.println("🔗 Συνδεθήκαμε στον server!");
 
-    private void startCommunication() {
-        PrintWriter out = null;
-        BufferedReader in = null;
-        try {
-            out = new PrintWriter(socket.getOutputStream(), true);
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        } catch (IOException e) {
-            System.err.println("Client: Couldn't get I/O");
-            System.exit(1);
-        }
+            while (true) {
+                System.out.println("\nΕισαγωγή εντολής: (A,B,C) ή (0,0 για έξοδο)");
+                String command = scanner.nextLine();
 
-        BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-        String userInput;
+                out.println(command);
+                String response = in.readLine();
+                System.out.println("📨 Απάντηση server: " + response);
 
-        System.out.println("Type command: ");
-        try {
-            while ((userInput = stdIn.readLine()) != null) {
-                out.println(userInput);
-                if (userInput.equals("0,0")) {
-                    System.out.print("exit command!");
+                if ("bye".equals(response)) {
+                    System.out.println("Αποσύνδεση...");
                     break;
                 }
-                System.out.println("result: " + in.readLine());
-                System.out.print("next command: ");
             }
         } catch (IOException e) {
-            System.err.println("Error when closing sockets");
-        }
-
-        // close the streams and the sockets
-        try {
-            out.close();
-            in.close();
-            socket.close();
-        } catch (IOException e) {
-            System.err.println("Error when closing sockets");
+            e.printStackTrace();
         }
     }
 }

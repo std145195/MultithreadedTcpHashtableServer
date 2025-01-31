@@ -1,207 +1,87 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
-
+import java.io.*;
+import java.net.*;
+import java.util.concurrent.ConcurrentHashMap;
+/**
+Για να μπορεί να εξυπηρετεί περισσότερους clients τροποποιήθηκε ο κωδικας ως εξής:
+    - δημιουργία ClientHandler που κάνει extend την κλάση Thread
+    - ο server κάθε φορά που δέχεται μήνυμα από client δημιουργεί ενα object ClientHandler, δηλαδή ανοίγει ένα νέο thread
+    - η μέθοδος processCommand δεν είναι πια static και πρέπει να έχει πρόσβαση στο instance hashMap
+ **/
 public class Server {
-    private static final int PORT = 9999;
-    private static final int SIZE = 1048576;
-
-    // We assume that the hash table only stores positive (> 0) values.
-    // Therefore a key with 0 (zero) value indicates that nothing is stored there.
-    // Since the key is an integer we decided to use an array of integers as a hashtable,
-    // instead of using Hashtable implementation of the core library.
-    private final int[] HASH_TABLE = new int[SIZE];
-
-    private ServerSocket serverSocket = null;
-    private final Object lock = new Object();
+    private static final int PORT = 8888;
+    private static final ConcurrentHashMap<Integer, Integer> hashMap = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
-        new Server(PORT).accept();
-    }
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            System.out.println("🚀 Server ξεκίνησε στην πόρτα " + PORT);
 
-    /**
-     * The constructor starts the server.
-     *
-     * @param port the port that the server listens to.
-     */
-    public Server(int port) {
-        try {
-            serverSocket = new ServerSocket(port);
+            while (true) {
+                Socket clientSocket = serverSocket.accept(); // Δέχεται νέο client
+                System.out.println("Νέος client συνδέθηκε!");
+
+                // Δημιουργεί νέο νήμα για τον client
+                new ClientHandler(clientSocket, hashMap).start();
+            }
         } catch (IOException e) {
-            System.err.println("Could not listen on port: " + port);
-            System.exit(1);
+            e.printStackTrace();
         }
     }
+}
 
-    /**
-     * This method initiates the accept process for the server and processes the requests from clients.
-     */
-    public void accept() {
-        while (true) {
-            System.out.println("Waiting for connections...");
-            try {
-                Socket clientSocket = serverSocket.accept();
-                new ServerThread(clientSocket).start();
-            } catch (IOException e) {
-                System.err.println("Accept failed.");
-                System.exit(1);
-            }
-        }
+// 🚀 Κλάση που χειρίζεται κάθε Client σε ξεχωριστό νήμα
+class ClientHandler extends Thread {
+    private final Socket clientSocket;
+    private final ConcurrentHashMap<Integer, Integer> hashMap;
+
+    public ClientHandler(Socket socket, ConcurrentHashMap<Integer, Integer> hashMap) {
+        this.clientSocket = socket;
+        this.hashMap = hashMap;
     }
 
-    /**
-     * An internal class which creates a thread to serve each client.
-     */
-    private class ServerThread extends Thread {
-        private final Socket clientSocket;
+    @Override
+    public void run() {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
 
-        public ServerThread(Socket clientSocket) {
-            this.clientSocket = clientSocket;
-            System.out.println("Connection successful!");
-        }
-
-        @Override
-        public void run() {
-            PrintWriter out = null;
-            BufferedReader in = null;
-
-            System.out.println("Waiting for a command...");
-
-            try {
-                out = new PrintWriter(clientSocket.getOutputStream(), true);
-                in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-
-                // this method performs the communication through the streams
-                processInput(in, out);
-            } catch (IOException e) {
-                System.err.println("IOException...");
-            }
-
-            // close the streams and the sockets
-            try {
-                if (out != null) {
-                    out.close();
-                }
-                if (in != null) {
-                    in.close();
-                }
-                clientSocket.close();
-            } catch (IOException e) {
-                System.err.println("Error when closing sockets");
-            }
-        }
-
-        /**
-         * This method performs the communication through the streams
-         */
-        private void processInput(BufferedReader in, PrintWriter out) throws IOException {
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
-                System.out.println("Server: " + inputLine);
-
-                String[] inputDataString = inputLine.split(",");
-                // We consider that the input will have two or three numbers separated with comma.
-                // Everything else will be considered as invalid input and a negative status value will be returned.
-                if (inputDataString.length < 2 || inputDataString.length > 3) {
-                    System.out.println("Server: Invalid input");
-                    out.println(0);
-                    continue;
-                }
-
-                int command = -1;
-                int key = -1;
-                int value = -1;
-
-                // check if we have integers in the data
-                try {
-                    command = Integer.parseInt(inputDataString[0].trim());
-                    key = Integer.parseInt(inputDataString[1].trim());
-                    if (inputDataString.length == 3) {
-                        value = Integer.parseInt(inputDataString[2].trim());
-                    }
-                } catch (ArithmeticException e) {
-                    System.out.println("Server: Invalid input");
-                    out.println(0);
-                    continue;
-                }
-
-                // validate and process the command
-                switch (command) {
-                    case 0:
-                        // Terminates the while loop and then the server
-                        if (key == 0) {
-                            System.out.println("Server: End command");
-                            return;
-                        } else {
-                            System.out.println("Server: Invalid input");
-                            out.println(0);
-                        }
-                        break;
-                    case 1:
-                        out.println(insert(key, value));
-                        break;
-                    case 2:
-                        out.println(delete(key));
-                        break;
-                    case 3:
-                        out.println(search(key));
-                        break;
-                    default:
-                        System.out.println("Server: Invalid command: " + command);
-                        out.println(0);
-                        break;
-                }
+                System.out.println("📩 Client Message: " + inputLine);
+                String response = processCommand(inputLine);
+                out.println(response);
+                if ("bye".equals(response)) break;
             }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                clientSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            System.out.println("🔴 Client αποσυνδέθηκε.");
         }
+    }
 
-        /**
-         * Process the insert command
-         */
-        private int insert(int key, int value) {
-            synchronized (lock) {
-                if (key < 0 || key > SIZE - 1) {
-                    System.out.println("Server: Invalid key: " + key);
-                    return 0;
-                }
-                if (value < 1) {
-                    System.out.println("Server: Invalid value: " + value);
-                    return 0;
-                }
+    private String processCommand(String command) {
+        String[] parts = command.split(",");
 
-                System.out.println("Server: Wrote key " + key + " value " + value);
-                HASH_TABLE[key] = value;
-                return 1;
-            }
-        }
-
-        /**
-         * Process the delete command
-         */
-        private int delete(int key) {
-            synchronized (lock) {
-                if (key < 0 || key > SIZE - 1) {
-                    System.out.println("Server: Invalid key: " + key);
-                    return 0;
-                }
-                System.out.println("Server: Deleted key " + key);
-                HASH_TABLE[key] = 0;
-                return 1;
-            }
-        }
-
-        /**
-         * Process the search command
-         */
-        private int search(int key) {
-            if (key < 0 || key > SIZE - 1) {
-                System.out.println("Server: Invalid key: " + key);
-                return 0;
-            }
-            System.out.println("Server: Search key " + key + " value " + HASH_TABLE[key]);
-            return HASH_TABLE[key];
+        int action = Integer.parseInt(parts[0]);
+        int key = Integer.parseInt(parts[1]);
+// 0 (τέλος επικοινωνίας), 1 (insert), 2 (delete) και 3 (search)
+        if (action == 0) {
+            System.out.println("Κλείσιμο σύνδεσης.");
+            return "bye";
+        } else if (action == 1) {
+            int value = Integer.parseInt(parts[2]);
+            hashMap.put(key, value);
+            return "1"; // Επιτυχής εισαγωγή
+        } else if (action == 2) {
+            return hashMap.remove(key) != null ? "1" : "0"; // Διαγραφή
+        } else if (action == 3) {
+            return hashMap.containsKey(key) ? hashMap.get(key).toString() : "0"; // Αναζήτηση
+        } else {
+            return "0"; // Λανθασμένη εντολή
         }
     }
 }
