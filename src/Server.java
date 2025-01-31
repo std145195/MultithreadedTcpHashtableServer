@@ -13,7 +13,7 @@ public class Server {
 
     public static void main(String[] args) {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            System.out.println("🚀 Server ξεκίνησε στην πόρτα " + PORT);
+            System.out.println("Server ξεκίνησε στην πόρτα " + PORT);
 
             while (true) {
                 Socket clientSocket = serverSocket.accept(); // Δέχεται νέο client
@@ -28,7 +28,7 @@ public class Server {
     }
 }
 
-// 🚀 Κλάση που χειρίζεται κάθε Client σε ξεχωριστό νήμα
+// Κλάση που χειρίζεται κάθε Client σε ξεχωριστό νήμα
 class ClientHandler extends Thread {
     private final Socket clientSocket;
     private final ConcurrentHashMap<Integer, Integer> hashMap;
@@ -45,7 +45,7 @@ class ClientHandler extends Thread {
 
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
-                System.out.println("📩 Client Message: " + inputLine);
+                System.out.println("Client Message: " + inputLine);
                 String response = processCommand(inputLine);
                 out.println(response);
                 if ("bye".equals(response)) break;
@@ -59,7 +59,7 @@ class ClientHandler extends Thread {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            System.out.println("🔴 Client αποσυνδέθηκε.");
+            System.out.println("Client αποσυνδέθηκε.");
         }
     }
 

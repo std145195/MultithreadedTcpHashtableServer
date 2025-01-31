@@ -2,6 +2,12 @@ import java.io.*;
 import java.net.*;
 import java.util.Scanner;
 
+/**
+  ο κώδικας του Client μπορεί να παραμείνει ο ίδιος με το πρώτο ερώτημα.
+ - Ο Client δεν χρειάζεται να γνωρίζει αν ο Server υποστηρίζει πολλά νήματα ή όχι.
+ - Στέλνει ακριβώς τις ίδιες εντολές και περιμένει απαντήσεις από τον Server.
+ - Ο Server απλώς δημιουργεί νέα threads για κάθε Client, αλλά ο Client δεν επηρεάζεται από αυτό.
+ **/
 public class Client {
     public static void main(String[] args) {
         String serverAddress = "localhost";
