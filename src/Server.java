@@ -68,7 +68,7 @@ class ClientHandler extends Thread {
 
         int action = Integer.parseInt(parts[0]);
         int key = Integer.parseInt(parts[1]);
-// 0 (τέλος επικοινωνίας), 1 (insert), 2 (delete) και 3 (search)
+        // 0 (τέλος επικοινωνίας), 1 (insert), 2 (delete) και 3 (search)
         if (action == 0) {
             System.out.println("Κλείσιμο σύνδεσης.");
             return "bye";
